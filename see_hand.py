@@ -14,15 +14,16 @@ BONES = [
     (5, 9), (9, 13), (13, 17),
 ]
 
+
 def main():
     options = vision.HandLandmarkerOptions(
         base_options=python.BaseOptions(model_asset_path="hand_landmarker.task"),
         running_mode=vision.RunningMode.VIDEO,
-        num_hands=1,
+        num_hands=2,
     )
     landmarker = vision.HandLandmarker.create_from_options(options)
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     if not cap.isOpened():
         raise SystemExit("打不开摄像头")
 
@@ -40,26 +41,39 @@ def main():
 
         h, w = frame.shape[:2]
         if result.hand_landmarks:
-            pts = result.hand_landmarks[0]
-            xy = [(int(p.x * w), int(p.y * h)) for p in pts]
+            for hand_i, pts in enumerate(result.hand_landmarks):
+                xy = [(int(p.x * w), int(p.y * h)) for p in pts]
+                color = (80, 220, 120) if hand_i == 0 else (255, 160, 40)
 
-            for a, b in BONES:
-                cv2.line(frame, xy[a], xy[b], (80, 220, 120), 2)
-            for x, y in xy:
-                cv2.circle(frame, (x, y), 4, (40, 180, 255), -1)
+                for a, b in BONES:
+                    cv2.line(frame, xy[a], xy[b], color, 2)
+                for x, y in xy:
+                    cv2.circle(frame, (x, y), 4, color, -1)
 
-            thumb, index = xy[4], xy[8]  # 4 拇指尖，8 食指尖
-            cv2.line(frame, thumb, index, (0, 200, 255), 2)
-            pinch = ((thumb[0] - index[0]) ** 2 + (thumb[1] - index[1]) ** 2) ** 0.5
+                thumb, index = xy[4], xy[8]
+                cv2.line(frame, thumb, index, color, 2)
+                pinch = ((thumb[0] - index[0]) ** 2 + (thumb[1] - index[1]) ** 2) ** 0.5
 
-            cv2.circle(frame, index, 8, (0, 0, 255), 2)
-            cv2.putText(frame, f"pinch {pinch:.0f}px", (20, 40),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 220, 255), 2)
-            cv2.putText(frame, f"index ({index[0]}, {index[1]})", (20, 80),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 220, 80), 2)
+                cv2.circle(frame, index, 8, (0, 0, 255), 2)
+                cv2.putText(
+                    frame,
+                    f"hand{hand_i} pinch {pinch:.0f}px  index ({index[0]}, {index[1]})",
+                    (20, 40 + hand_i * 40),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    color,
+                    2,
+                )
         else:
-            cv2.putText(frame, "no hand", (20, 40),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+            cv2.putText(
+                frame,
+                "no hand",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                (0, 0, 255),
+                2,
+            )
 
         cv2.imshow("see hand", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -67,6 +81,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
